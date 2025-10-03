@@ -1,13 +1,10 @@
 {
   "name": "multi-vehicle-search",
   "version": "1.0.0",
-  "main": "dist/server.js",
+  "main": "index.js",
   "scripts": {
-    "dev": "node --experimental-strip-types --watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "type-check": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node src/server.ts",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -28,7 +25,10 @@
   "devDependencies": {
     "@tsconfig/strictest": "^2.0.6",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.6.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
     "typescript": "^5.9.3"
   }
 }
