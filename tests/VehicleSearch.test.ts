@@ -327,9 +327,9 @@ describe("VehicleSearch", () => {
   it("handles exact fit scenarios (vehicle dimensions match listing exactly)", () => {
     const loc = "L";
     const l: Listing[] = [
-      { id: "EXACT", location_id: loc, length: 25, width: 10, price_in_cents: 100 },
+      { id: "EXACT", location_id: loc, length: 20, width: 10, price_in_cents: 100 },
     ];
-    const req: VehicleRequest[] = [{ length: 25, quantity: 1 }];
+    const req: VehicleRequest[] = [{ length: 20, quantity: 1 }];
     const result = new VehicleSearch(l).find(req);
     expect(result).toEqual([
       { location_id: loc, listing_ids: ["EXACT"], total_price_in_cents: 100 },
@@ -456,5 +456,20 @@ describe("VehicleSearch", () => {
       listing_ids: ["WIDE"],
       total_price_in_cents: 600,
     });
+  });
+
+  it("uses three small listings instead of one big expensive listing", () => {
+    const loc = "L";
+    const l: Listing[] = [
+      { id: "S1", location_id: loc, length: 20, width: 10, price_in_cents: 40 },
+      { id: "S2", location_id: loc, length: 20, width: 10, price_in_cents: 50 },
+      { id: "S3", location_id: loc, length: 20, width: 10, price_in_cents: 60 },
+      { id: "BIG", location_id: loc, length: 60, width: 10, price_in_cents: 160 },
+    ];
+    const req: VehicleRequest[] = [{ length: 20, quantity: 3 }];
+    const [res] = new VehicleSearch(l).find(req);
+    expect(res.location_id).toBe(loc);
+    expect(res.total_price_in_cents).toBe(150);
+    expect(res.listing_ids).toEqual(expect.arrayContaining(["S1", "S2", "S3"]));
   });
 });
