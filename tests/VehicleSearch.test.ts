@@ -99,8 +99,8 @@ describe("VehicleSearch", () => {
     expect(result).toEqual([
       {
         location_id: "A",
-        listing_ids: ["a1", "a2"],
-        total_price_in_cents: 210,
+        listing_ids: ["a3"],
+        total_price_in_cents: 200,
       },
       {
         location_id: "B",
@@ -157,7 +157,7 @@ describe("VehicleSearch", () => {
     const result = search.find(request);
     expect(result).toContainEqual({
       location_id: "A",
-      listing_ids: ["a4", "a1"],
+      listing_ids: ["a1", "a4"],
       total_price_in_cents: 190,
     });
   });
@@ -435,23 +435,19 @@ describe("VehicleSearch", () => {
     ];
     const req: VehicleRequest[] = [{ length: 50, quantity: 1 }];
     const result = new VehicleSearch(l).find(req);
-    expect(result).toContainEqual({
+    // Should return only the cheapest option per location (requirement: "Include only one result per location_id")
+    expect(result).toEqual([{
       location_id: loc,
       listing_ids: ["H"],
       total_price_in_cents: 200,
-    });
-    expect(result).toContainEqual({
-      location_id: loc,
-      listing_ids: ["V"],
-      total_price_in_cents: 300,
-    });
+    }]);
   });
 
   it("handles multiple listings needed where single large listing insufficient in one dimension", () => {
     const loc = "L";
     const l: Listing[] = [
       { id: "LONG", location_id: loc, length: 100, width: 10, price_in_cents: 500 },
-      { id: "WIDE", location_id: loc, length: 50, width: 20, price_in_cents: 600 },
+      { id: "WIDE", location_id: loc, length: 50, width: 30, price_in_cents: 600 },
     ];
     const req: VehicleRequest[] = [{ length: 50, quantity: 3 }];
     const result = new VehicleSearch(l).find(req);
