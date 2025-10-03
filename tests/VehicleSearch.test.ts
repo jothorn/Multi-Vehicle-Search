@@ -472,4 +472,81 @@ describe("VehicleSearch", () => {
     expect(res.total_price_in_cents).toBe(150);
     expect(res.listing_ids).toEqual(expect.arrayContaining(["S1", "S2", "S3"]));
   });
+
+  it("should fail when lane capacity is exceeded by individual vehicles", () => {
+    const loc = "L";
+    const l: Listing[] = [
+      { id: "L1", location_id: loc, length: 30, width: 20, price_in_cents: 100 },
+    ];
+    // The listing provides two 30ft lanes. The request is for three 20ft vehicles.
+    // Only one 20ft vehicle can fit in each 30ft lane, so only two vehicles fit.
+    const req: VehicleRequest[] = [{ length: 20, quantity: 3 }];
+    const result = new VehicleSearch(l).find(req);
+    // The correct behavior is to find no solution.
+    expect(result).toEqual([]);
+  });
+
+  it("rejects multi-vehicle packing that exceeds individual lane capacities", () => {
+    const loc = "L";
+    const l: Listing[] = [
+      { id: "L1", location_id: loc, length: 50, width: 20, price_in_cents: 100 },
+    ];
+    // The listing provides two 50ft lanes.
+    // The request is for vehicles of lengths [30, 30, 30, 10]. Sum is 100.
+    // These cannot be packed: e.g., Lane 1: 30+10=40. Lane 2: 30. The third 30ft vehicle does not fit.
+    const req: VehicleRequest[] = [
+      { length: 30, quantity: 3 },
+      { length: 10, quantity: 1 },
+    ];
+    const result = new VehicleSearch(l).find(req);
+    // The correct behavior is to find no solution.
+    expect(result).toEqual([]);
+  });
+
+  it("does not mix orientations within a listing (forces two listings instead of one mixed)", () => {
+    const loc = "L";
+    const l: Listing[] = [
+      { id: "MIX", location_id: loc, length: 20, width: 30, price_in_cents: 150 },
+      { id: "L30", location_id: loc, length: 30, width: 10, price_in_cents: 90 },
+      { id: "L20", location_id: loc, length: 20, width: 10, price_in_cents: 80 },
+    ];
+    const req: VehicleRequest[] = [{ length: 30, quantity: 1 }, { length: 20, quantity: 1 }];
+    const result = new VehicleSearch(l).find(req);
+    // If mixing were allowed, "MIX" (150) would be cheaper; correct is 90+80=170 with two listings
+    expect(result).toEqual([
+      {
+        location_id: loc,
+        listing_ids: expect.arrayContaining(["L30", "L20"]),
+        total_price_in_cents: 170,
+      },
+    ]);
+  });
+
+  it("packs multiple rotated vehicles in one short-wide listing", () => {
+    const loc = "L";
+    const l: Listing[] = [{ id: "W", location_id: loc, length: 10, width: 100, price_in_cents: 200 }];
+    const req: VehicleRequest[] = [{ length: 50, quantity: 2 }];
+    const result = new VehicleSearch(l).find(req);
+    expect(result).toEqual([
+      { location_id: loc, listing_ids: ["W"], total_price_in_cents: 200 },
+    ]);
+  });
+
+  it("rejects packing when rotated widths exceed listing width", () => {
+    const loc = "L";
+    const l: Listing[] = [{ id: "W", location_id: loc, length: 10, width: 50, price_in_cents: 200 }];
+    const req: VehicleRequest[] = [{ length: 30, quantity: 2 }]; // width needed = 60 > 50
+    const result = new VehicleSearch(l).find(req);
+    expect(result).toEqual([]);
+  });
+
+  it("aggregates duplicate lines for the same vehicle size", () => {
+    const loc = "L";
+    const l: Listing[] = [{ id: "BIG", location_id: loc, length: 60, width: 10, price_in_cents: 120 }];
+    const req: VehicleRequest[] = [{ length: 20, quantity: 1 }, { length: 20, quantity: 2 }];
+    const result = new VehicleSearch(l).find(req);
+    expect(result).toEqual([
+      { location_id: loc, listing_ids: ["BIG"], total_price_in_cents: 120 },
+    ]);
+  });
 });
