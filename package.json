@@ -5,6 +5,7 @@
   "scripts": {
     "test": "jest",
     "build": "tsc",
+    "zip": "tar -czf multi-vehicle-search.tar.gz dist/ package.json package-lock.json listings.json",
     "start": "node dist/server.js"
   },
   "repository": {
