@@ -16,6 +16,7 @@ const listings: Listing[] = JSON.parse(fs.readFileSync(listingsPath, 'utf-8'));
 const vehicleSearch = new VehicleSearch(listings);
 
 app.post('/', (req, res) => {
+  console.log(`[${new Date().toISOString()}] Received ${req.method} request for ${req.url}`);
   const requests = req.body as VehicleRequest[];
 
   if (
