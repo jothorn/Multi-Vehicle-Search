@@ -19,9 +19,11 @@ export interface SearchResult {
 
 export class VehicleSearch {
   private locations: Record<string, Listing[]>;
+  private canFitCache: Map<string, boolean>;
 
   constructor(listings: Listing[]) {
     this.locations = {};
+    this.canFitCache = new Map();
     for (const listing of listings) {
       (this.locations[listing.location_id] ??= []).push(listing);
     }
@@ -29,7 +31,7 @@ export class VehicleSearch {
 
   find(requests: VehicleRequest[]): SearchResult[] {
     if (requests.some((r) => r.quantity < 0)) {
-        throw new Error("Vehicle quantity cannot be negative");
+      throw new Error("Vehicle quantity cannot be negative");
     }
 
     const vehicles = requests
@@ -97,7 +99,7 @@ export class VehicleSearch {
       sortedListings,
       {}
     );
-    
+
     return result === null ? undefined : result;
   }
 
@@ -111,7 +113,7 @@ export class VehicleSearch {
     if (subsetIndex === vehicleSubsets.length) {
       return { price: 0, listing_ids: [] };
     }
-    
+
     const usedIdsKey = Array.from(usedListingIds).sort().join(',');
     const memoKey = `${subsetIndex}:${usedIdsKey}`;
     const cached = memo[memoKey];
@@ -165,7 +167,7 @@ export class VehicleSearch {
     }
 
     const rest = set.slice(1);
-    
+
     const smallerPartitions = this.generatePartitions(rest);
     const allPartitions: T[][][] = [];
     for (const partition of smallerPartitions) {
@@ -189,26 +191,88 @@ export class VehicleSearch {
     if (vehicleLengths.length === 0) {
       return true;
     }
-    const sumLengths = vehicleLengths.reduce((a, b) => a + b, 0);
-    const maxLength = Math.max(...vehicleLengths);
-    const vehicleWidth = 10;
 
-    // Orientation 1: vehicles parallel to listing length
-    const lanes1 = Math.floor(listing.width / vehicleWidth);
-    if (lanes1 > 0) {
-      const fit1 =
-        maxLength <= listing.length && sumLengths <= listing.length * lanes1;
-      if (fit1) return true;
+    const normalized = [...vehicleLengths].sort((a, b) => b - a);
+    const keyBase = `${listing.length}x${listing.width}:${normalized.join(',')}`;
+
+    // Orientation 1 (parallel to listing length). Allowed if every vehicle fits unrotated.
+    {
+      const key = `${keyBase}:O1`;
+      const cached = this.canFitCache.get(key);
+      if (cached !== undefined) return cached;
+
+      const lanes = Math.floor(listing.width / 10);
+      const allFitIndividually = normalized.every((len) => len <= listing.length);
+      let ok = false;
+      if (lanes > 0 && allFitIndividually) {
+        ok = this.canPackIntoLanes(normalized, lanes, listing.length);
+      }
+      this.canFitCache.set(key, ok);
+      if (ok) return true;
     }
 
-    // Orientation 2: vehicles parallel to listing width
-    const lanes2 = Math.floor(listing.length / vehicleWidth);
-    if (lanes2 > 0) {
-      const fit2 =
-        maxLength <= listing.width && sumLengths <= listing.width * lanes2;
-      if (fit2) return true;
+    // Orientation 2 (parallel to listing width). Enforce non-mixed policy: every vehicle must
+    // require rotation to fit (i.e., be longer than listing.length), and also fit within listing.width.
+    {
+      const key = `${keyBase}:O2`;
+      const cached = this.canFitCache.get(key);
+      if (cached !== undefined) return cached;
+
+      const lanes = Math.floor(listing.length / 10);
+      const allRequireRotation = normalized.every((len) => len > listing.length);
+      const allFitRotated = normalized.every((len) => len <= listing.width);
+      let ok = false;
+      if (lanes > 0 && allRequireRotation && allFitRotated) {
+        ok = this.canPackIntoLanes(normalized, lanes, listing.width);
+      }
+      this.canFitCache.set(key, ok);
+      if (ok) return true;
     }
 
     return false;
+  }
+
+  private canPackIntoLanes(
+    items: number[],
+    lanes: number,
+    laneCapacity: number
+  ): boolean {
+    if (lanes <= 0) return false;
+    if (items.length === 0) return true;
+    if (Math.max(...items) > laneCapacity) return false;
+    const total = items.reduce((a, b) => a + b, 0);
+    if (total > lanes * laneCapacity) return false;
+
+    const sorted = [...items].sort((a, b) => b - a);
+    const capacities: number[] = Array(lanes).fill(laneCapacity);
+    const memo = new Set<string>();
+
+    const dfs = (index: number): boolean => {
+      if (index === sorted.length) return true;
+      const item = sorted[index]!;
+
+      const key = `${index}:${capacities
+        .slice()
+        .sort((a, b) => b - a)
+        .join('|')}`;
+      if (memo.has(key)) return false;
+
+      let lastTried = -1;
+      for (let i = 0; i < capacities.length; i++) {
+        const rem = capacities[i]!;
+        if (rem === lastTried) continue;
+        if (rem >= item) {
+          capacities[i] = rem - item;
+          if (dfs(index + 1)) return true;
+          capacities[i] = rem;
+          lastTried = rem;
+        }
+      }
+
+      memo.add(key);
+      return false;
+    };
+
+    return dfs(0);
   }
 }
