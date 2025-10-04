@@ -11,6 +11,6 @@ echo "Building the project..."
 npm run build
 
 echo "Starting application with pm2..."
-npx pm2 start dist/server.js --name multi-vehicle-search -f
+npx pm2 restart dist/server.js
 
 echo "Deployment finished."
