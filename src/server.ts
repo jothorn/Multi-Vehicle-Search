@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { VehicleSearch, Listing, VehicleRequest } from './lib/VehicleSearch.js';
 
 const app = express();
-const PORT = process.env['PORT'] || 3000;
+const PORT = 3000;
 
 app.use(express.json());
 
@@ -16,8 +16,9 @@ const listings: Listing[] = JSON.parse(fs.readFileSync(listingsPath, 'utf-8'));
 const vehicleSearch = new VehicleSearch(listings);
 
 app.post('/', (req, res) => {
-  console.log(`[${new Date().toISOString()}] Received ${req.method} request for ${req.url}`);
-  const requests = req.body as VehicleRequest[];
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${JSON.stringify(req.body)}`);
+
+  const requests = req.body;
 
   if (
     !Array.isArray(requests) ||
