@@ -120,7 +120,12 @@ export class VehicleSearch {
         return; // Pruning
       }
 
-      for (const listing of candidatesPerSubset[subsetIndex]) {
+      const candidates = candidatesPerSubset[subsetIndex];
+      if (!candidates) {
+        return;
+      }
+
+      for (const listing of candidates) {
         if (!usedListingIds.has(listing.id)) {
           usedListingIds.add(listing.id);
           solve(
