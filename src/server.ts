@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { VehicleSearch, Listing, VehicleRequest } from './lib/VehicleSearch.js';
+import { VehicleSearch, Listing } from './lib/VehicleSearch.js';
 
 const app = express();
 const PORT = 3000;
@@ -18,7 +18,7 @@ const vehicleSearch = new VehicleSearch(listings);
 app.post('/', (req, res) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} ${JSON.stringify(req.body)}`);
 
-  const requests = req.body;
+  const requests: unknown = req.body;
 
   if (
     !Array.isArray(requests) ||

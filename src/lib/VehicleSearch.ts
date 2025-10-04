@@ -1,4 +1,4 @@
-export interface VehicleRequest {
+interface VehicleRequest {
   length: number;
   quantity: number;
 }
@@ -11,7 +11,7 @@ export interface Listing {
   price_in_cents: number;
 }
 
-export interface SearchResult {
+interface SearchResult {
   location_id: string;
   listing_ids: string[];
   total_price_in_cents: number;
