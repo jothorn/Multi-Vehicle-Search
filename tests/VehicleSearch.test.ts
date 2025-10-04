@@ -3,6 +3,8 @@ import {
   Listing,
   VehicleRequest,
 } from "../src/lib/VehicleSearch";
+import fs from "fs";
+import path from "path";
 
 const listings: Listing[] = [
   // Location A
@@ -548,5 +550,25 @@ describe("VehicleSearch", () => {
     expect(result).toEqual([
       { location_id: loc, listing_ids: ["BIG"], total_price_in_cents: 120 },
     ]);
+  });
+
+  it("should perform well with a large number of listings in a worst-case scenario", () => {
+    jest.setTimeout(20000);
+    const largeListings: Listing[] = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '../listings.json'), 'utf-8')
+    );
+    const search = new VehicleSearch(largeListings);
+    // This is a worst-case scenario because many listings can fit one or more
+    // 10ft vehicles, leading to a combinatorial explosion in the search for the
+    // cheapest combination.
+    const request: VehicleRequest[] = [{ length: 10, quantity: 5 }];
+
+    const startTime = performance.now();
+    search.find(request);
+    const endTime = performance.now();
+
+    const duration = endTime - startTime;
+    console.log(`Performance test duration: ${duration}ms`);
+    expect(duration).toBeLessThan(2000);
   });
 });

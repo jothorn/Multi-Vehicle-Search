@@ -1,4 +1,4 @@
-interface VehicleRequest {
+export interface VehicleRequest {
   length: number;
   quantity: number;
 }
@@ -88,73 +88,55 @@ export class VehicleSearch {
     vehicleSubsets: number[][],
     listings: Listing[]
   ): { price: number; listing_ids: string[] } | undefined {
-    const sortedListings = [...listings].sort(
-      (a, b) => a.price_in_cents - b.price_in_cents
+    const candidatesPerSubset = vehicleSubsets.map((subset) =>
+      listings
+        .filter((listing) => this.canFit(subset, listing))
+        .sort((a, b) => a.price_in_cents - b.price_in_cents)
     );
 
-    const result = this.solveAssignment(
-      0,
-      new Set(),
-      vehicleSubsets,
-      sortedListings,
-      {}
-    );
-
-    return result === null ? undefined : result;
-  }
-
-  private solveAssignment(
-    subsetIndex: number,
-    usedListingIds: Set<string>,
-    vehicleSubsets: number[][],
-    sortedListings: Listing[],
-    memo: Record<string, { price: number; listing_ids: string[] } | null>
-  ): { price: number; listing_ids: string[] } | null {
-    if (subsetIndex === vehicleSubsets.length) {
-      return { price: 0, listing_ids: [] };
+    if (candidatesPerSubset.some((candidates) => candidates.length === 0)) {
+      return undefined;
     }
 
-    const usedIdsKey = Array.from(usedListingIds).sort().join(',');
-    const memoKey = `${subsetIndex}:${usedIdsKey}`;
-    const cached = memo[memoKey];
-    if (cached !== undefined) {
-      return cached;
-    }
+    let bestCombination: { price: number; listing_ids: string[] } | undefined;
 
-    const currentSubset = vehicleSubsets[subsetIndex];
-    if (currentSubset === undefined) {
-      return null;
-    }
-    let bestResult: { price: number; listing_ids: string[] } | null = null;
+    const solve = (
+      subsetIndex: number,
+      currentPrice: number,
+      usedListingIds: Set<string>,
+      currentListingIds: string[]
+    ) => {
+      if (subsetIndex === vehicleSubsets.length) {
+        if (!bestCombination || currentPrice < bestCombination.price) {
+          bestCombination = {
+            price: currentPrice,
+            listing_ids: currentListingIds,
+          };
+        }
+        return;
+      }
 
-    for (const listing of sortedListings) {
-      if (!usedListingIds.has(listing.id)) {
-        if (this.canFit(currentSubset, listing)) {
+      if (bestCombination && currentPrice >= bestCombination.price) {
+        return; // Pruning
+      }
+
+      for (const listing of candidatesPerSubset[subsetIndex]) {
+        if (!usedListingIds.has(listing.id)) {
           usedListingIds.add(listing.id);
-          const subProblemResult = this.solveAssignment(
+          solve(
             subsetIndex + 1,
+            currentPrice + listing.price_in_cents,
             usedListingIds,
-            vehicleSubsets,
-            sortedListings,
-            memo
+            [...currentListingIds, listing.id]
           );
           usedListingIds.delete(listing.id);
-
-          if (subProblemResult !== null) {
-            const currentPrice = listing.price_in_cents + subProblemResult.price;
-            if (bestResult === null || currentPrice < bestResult.price) {
-              bestResult = {
-                price: currentPrice,
-                listing_ids: [listing.id, ...subProblemResult.listing_ids],
-              };
-            }
-          }
         }
       }
-    }
+    };
 
-    memo[memoKey] = bestResult;
-    return bestResult;
+    solve(0, 0, new Set(), []);
+
+    return bestCombination;
   }
 
   private generatePartitions<T>(set: T[]): T[][][] {
